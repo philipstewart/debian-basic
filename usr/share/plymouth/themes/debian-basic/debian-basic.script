@@ -1,0 +1,193 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+active_status = "normal";
+scale_factor = 1;
+logo_width = 121;
+logo_height = 150;
+
+window_height = Window.GetHeight ();
+
+if (window_height > 1440) {
+  scale_factor = 2;
+}
+
+fun scale (input) {
+  return input * scale_factor;
+}
+
+column_padding = scale (16);
+row_padding = scale (32);
+
+xcenter = Window.GetX() + Window.GetWidth() / 2;
+ycenter = Window.GetY() + Window.GetHeight() / 2;
+
+logo.image = Image ("logo.png").Scale (scale (logo_width), scale (logo_height));
+logo.sprite = Sprite (logo.image);
+logo.sprite.SetPosition (
+  xcenter - logo.image.GetWidth () / 2,
+  ycenter - logo.image.GetHeight () - scale(32),
+  10001
+);
+
+cursor.image = Image ("cursor.png").Scale (scale (2), scale (12));
+cursor.sprite = Sprite (cursor.image);
+cursor.opacity_angle = 0;
+
+message_sprite = Sprite ();
+
+Window.SetBackgroundTopColor(0.067, 0.063, 0.078);
+Window.SetBackgroundBottomColor(0.067, 0.063, 0.078);
+
+debug_status.sprite = Sprite ();
+debug_status.sprite.SetOpacity (1);
+debug_status.sprite.SetPosition (xcenter, 100, 10000);
+
+# Applies a breathing pattern to the opacity of an element.
+#
+# - `element` should contain a `sprite` with an `opacity_angle`.
+# - The `rate` defines the frequency in Hz
+fun breathe (element, rate) {
+  element.opacity_angle += ((2 * 3.14) / 50) * rate;
+  opacity = (Math.Cos(element.opacity_angle) + 1) / 2;
+  element.sprite.SetOpacity (opacity);
+}
+
+fun refresh_callback () {
+  # Hide the cursor by default on each display refresh
+  cursor.sprite.SetOpacity (0);
+
+  # Show the cursor if the status is `password`.
+  if (active_status == "password") {
+    breathe (cursor, 0.5);
+  }
+}
+
+Plymouth.SetRefreshFunction (refresh_callback);
+
+#----------------------------------------- Dialogue --------------------------------
+
+fun dialog_setup () {
+  local.entry;
+  local.cursor;
+  local.arrow;
+
+  arrow_size = scale(16);
+
+  entry.image = Image("entry.png").Scale(scale(400), scale(30));
+  arrow.image = Image("return.png").Scale(arrow_size, arrow_size);
+
+  height = entry.image.GetHeight() + row_padding;
+  ystart = ycenter + (height / 2);
+
+  entry.sprite = Sprite(entry.image);
+  entry.x = xcenter - entry.image.GetWidth() / 2;
+  entry.y = ystart - entry.image.GetHeight() / 2;
+  entry.sprite.SetPosition(entry.x, entry.y, 1000);
+
+  arrow.sprite = Sprite(arrow.image);
+  arrow.x = entry.x + entry.image.GetWidth() - arrow.image.GetWidth() - 2;
+  arrow.y = ystart - 4 - arrow.image.GetHeight() / 2;
+  arrow.sprite.SetPosition(arrow.x, arrow.y, 1000);
+
+  bullet_size = scale(12);
+  global.dialog.height = height;
+  global.dialog.entry = entry;
+  global.dialog.arrow = arrow;
+  global.dialog.bullet_image = Image("bullet.png").Scale(bullet_size, bullet_size);
+  dialog_opacity (1);
+}
+
+fun dialog_opacity (opacity) {
+  dialog.entry.sprite.SetOpacity (opacity);
+  dialog.arrow.sprite.SetOpacity (opacity);
+  cursor.sprite.SetOpacity (opacity);
+  for (index = 0; dialog.bullet[index]; index++) {
+    dialog.bullet[index].sprite.SetOpacity (opacity);
+  }
+}
+
+fun display_normal_callback () {
+  if (global.dialog) {
+    dialog_opacity (0);
+  }
+
+  active_status = "normal";
+}
+
+fun display_password_callback (prompt, bullets) {
+  active_status = "password";
+  if (!global.dialog) {
+    dialog_setup();
+  } else {
+    dialog_opacity(1);
+  }
+
+  yvalue = dialog.entry.y + dialog.entry.image.GetHeight() / 2
+    - dialog.bullet_image.GetHeight() / 2
+    - scale(2);
+  zvalue = dialog.entry.z + 1;
+
+  oindex = 0;
+  for (index = 0; dialog.bullet[index] || index < bullets && index < 31; index++) {
+    if (!dialog.bullet[index]) {
+        dialog.bullet[index].sprite = Sprite(dialog.bullet_image);
+        dialog.bullet[index].x = dialog.entry.x + index * dialog.bullet_image.GetWidth();
+        dialog.bullet[index].sprite.SetPosition(dialog.bullet[index].x, yvalue, zvalue);
+    }
+
+    if (index < bullets) {
+      oindex = index + 1;
+      dialog.bullet[index].sprite.SetOpacity(1);
+    } else {
+      dialog.bullet[index].sprite.SetOpacity(0);
+    }
+  }
+
+  xvalue = dialog.entry.x + oindex * dialog.bullet_image.GetWidth() + scale(4);
+  cursor.sprite.SetPosition(xvalue, yvalue, zvalue);
+  display_message_callback(prompt);
+}
+
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+
+#----------------------------------------- Message --------------------------------
+
+fun display_message_callback (text) {
+  if (text == "system-updates") {
+    active_status = "updates";
+    return;
+  } else if (text == "system-updates-stop") {
+      active_status = "normal";
+      return;
+  }
+
+  text_image = Image.Text(text, 1, 1, 1);
+  text_image = text_image.Scale(
+    scale(text_image.GetWidth()),
+    scale(text_image.GetHeight())
+  );
+
+  if (active_status == "updates") {
+    ypos = ycenter + text_image.GetHeight() / 2 + scale(30);
+  } else {
+    ypos = ycenter + dialog.height / 2 + scale(30);
+  }
+
+  message_sprite.SetImage(text_image);
+  message_sprite.SetPosition(
+    xcenter - text_image.GetWidth() / 2,
+    ypos,
+    10000
+  );
+
+  message_sprite.SetOpacity (1);
+}
+
+fun hide_message_callback (text) {
+  message_sprite = Sprite();
+  message_sprite.SetPosition(10, 10, 10000);
+}
+
+Plymouth.SetDisplayMessageFunction (display_message_callback);
+Plymouth.SetHideMessageFunction (hide_message_callback);
