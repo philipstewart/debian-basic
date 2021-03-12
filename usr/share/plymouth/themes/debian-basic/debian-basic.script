@@ -29,10 +29,6 @@ logo.sprite.SetPosition (
   10001
 );
 
-cursor.image = Image ("cursor.png").Scale (scale (2), scale (12));
-cursor.sprite = Sprite (cursor.image);
-cursor.opacity_angle = 0;
-
 message_sprite = Sprite ();
 
 Window.SetBackgroundTopColor(0.067, 0.063, 0.078);
@@ -42,33 +38,10 @@ debug_status.sprite = Sprite ();
 debug_status.sprite.SetOpacity (1);
 debug_status.sprite.SetPosition (xcenter, 100, 10000);
 
-# Applies a breathing pattern to the opacity of an element.
-#
-# - `element` should contain a `sprite` with an `opacity_angle`.
-# - The `rate` defines the frequency in Hz
-fun breathe (element, rate) {
-  element.opacity_angle += ((2 * 3.14) / 50) * rate;
-  opacity = (Math.Cos(element.opacity_angle) + 1) / 2;
-  element.sprite.SetOpacity (opacity);
-}
-
-fun refresh_callback () {
-  # Hide the cursor by default on each display refresh
-  cursor.sprite.SetOpacity (0);
-
-  # Show the cursor if the status is `password`.
-  if (active_status == "password") {
-    breathe (cursor, 0.5);
-  }
-}
-
-Plymouth.SetRefreshFunction (refresh_callback);
-
 #----------------------------------------- Dialogue --------------------------------
 
 fun dialog_setup () {
   local.entry;
-  local.cursor;
   local.arrow;
 
   arrow_size = scale(16);
@@ -100,7 +73,6 @@ fun dialog_setup () {
 fun dialog_opacity (opacity) {
   dialog.entry.sprite.SetOpacity (opacity);
   dialog.arrow.sprite.SetOpacity (opacity);
-  cursor.sprite.SetOpacity (opacity);
   for (index = 0; dialog.bullet[index]; index++) {
     dialog.bullet[index].sprite.SetOpacity (opacity);
   }
@@ -144,7 +116,6 @@ fun display_password_callback (prompt, bullets) {
   }
 
   xvalue = dialog.entry.x + oindex * dialog.bullet_image.GetWidth() + scale(4);
-  cursor.sprite.SetPosition(xvalue, yvalue, zvalue);
   display_message_callback(prompt);
 }
 
